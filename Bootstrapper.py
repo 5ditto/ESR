@@ -1,12 +1,13 @@
 
 import socket
+import time
 
 class Bootstrapper:
 
-    def __init__(self,file):
+    def __init__(self,file,porta):
         self.info = {}
         self.parserConfig(file)
-        self.porta = 2020
+        self.porta = porta
 
 
     # Parse do ficheiro de configuração
@@ -17,9 +18,9 @@ class Bootstrapper:
             if(line[0] != '#'):
                 partes = line.strip().split(':')
                 ip = partes[0]
-                vizinhos = partes[1].split(';')
+                vizinhos = partes[1].split(',')
                 self.info[ip] = vizinhos
-        print(self.info)
+        #print(self.info) # dá print ao dicionario com os ip's
 
     
     def getVizinhos(self,ip):
@@ -43,11 +44,15 @@ class Bootstrapper:
             tcp.listen(1)
 
             c, addr = tcp.accept()
-            ipRouter = c.recv(1024).decode('utf-8')
-            vizinhos = self.getVizinhos(ipRouter)
+            if (c.recv(1024).decode('utf-8')) == "Vizinhos":
+                print("Conexão estabelecida com " + addr[0] + " pela porta " + str(addr[1]))
+                vizinhos = self.getVizinhos(addr[0])
 
             for v in vizinhos:
-                c.send(v.encode('utf-8'))
+               c.send(v.encode('utf-8'))
+               time.sleep(0.1)
+            msg = "0"
+            c.send(msg.encode('utf-8'))
 
             
 
