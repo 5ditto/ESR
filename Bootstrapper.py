@@ -1,59 +1,47 @@
-
 import socket
 import time
-
+import json
 class Bootstrapper:
 
-    def __init__(self,file,porta):
+    def __init__(self,file):
         self.info = {}
+        self.nodos = {}
         self.parserConfig(file)
-        self.porta = porta
+
+
 
 
     # Parse do ficheiro de configuração
-    # Formato - IP_Nodo:IP_Vizinho1;IP_Vizinho2...
     def parserConfig(self,file):
         f = open(file, 'r')
         for line in f:
             if(line[0] != '#'):
                 partes = line.strip().split(':')
-                ip = partes[0]
-                vizinhos = partes[1].split(',')
-                self.info[ip] = vizinhos
-        #print(self.info) # dá print ao dicionario com os ip's
+                ip = tuple(map(str, partes[0][1:-1].split(',')))
+                vizinhos = partes[1].split(';')
+                self.info[ip] = [tuple(map(str, v[1:-1].split(','))) for v in vizinhos]
+                if (ip[0][0] == "n"):   # temos que mudar para "O" quando usarmos a topologia normal
+                    self.nodos[ip[0]] = "0" 
+        #print(self.info) # dá print ao dicionario
+    
+    def getVizinhos(self,nome):
+        for chave, listavalores in self.info.items():
+            if chave[0]==nome:
+                return listavalores
+
 
     
-    def getVizinhos(self,ip):
-        return self.info[ip]
+    def setNodoOFF(self,nodo):
+        self.nodos[nodo] = "0"
+        print("O nodo " + nodo + " está desligado.")
+
+    def setNodoON(self,nodo,ip):
+        self.nodos[nodo] = ip
 
 
-
-
-    def run(self):
-
-        # Cria um Socket TCP
-        tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        
-        # Liga o socket ao endereço IP e à porta especificados
-        tcp.bind(('',self.porta))
-        
-        while 1:        
-
-            tcp.listen(1)
-
-            c, addr = tcp.accept()
-            if (c.recv(1024).decode('utf-8')) == "Vizinhos":
-                print("Conexão estabelecida com " + addr[0] + " pela porta " + str(addr[1]))
-                vizinhos = self.getVizinhos(addr[0])
-
-            for v in vizinhos:
-               c.send(v.encode('utf-8'))
-               time.sleep(0.1)
-            msg = "0"
-            c.send(msg.encode('utf-8'))
-
+    def getNodos(self):
+        return self.nodos
+    
             
 
             
