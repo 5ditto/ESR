@@ -44,6 +44,15 @@ class Packet:
         if self.type == 4:
             msg += "Recebi pedido de Fload\n"
         
+        if self.type == 5:
+            msg += "Recebi identificação RP\n"
+
+        if self.type == 6:
+            msg += "Recebi pedido do IP do RP\n"
+
+        if self.type == 7:
+            msg += "Recebi IP do RP\n"
+        
         msg += str(self.data)
         msg += "\n--------------"
         
@@ -69,8 +78,19 @@ class Packet:
         
         if self.type == 4:
             msg += "Envei Fload\n"
+
+        if self.type == 5:
+            msg += "Enviei identificação RP\n"
+
+        if self.type == 6:
+            msg += "Enviei pedido do IP do RP\n"
+        
+        if self.type == 7:
+            msg += "Enviei IP do RP\n"
+        
+
+
         msg += str(self.data)
         msg += "\n--------------"
         
         print(msg)
-

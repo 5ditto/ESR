@@ -7,7 +7,7 @@ class TCPSender:
     def __init__(self,packet,porta):
         self.packet = packet
         self.IPDest = packet.getDestination()
-        self.porta = porta
+        self.porta = int(porta)
         self.packet.printSent()
 
         try:
