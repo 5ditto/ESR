@@ -59,29 +59,25 @@ class PacketHandlerBootstrapper(threading.Thread):
 
                 nomeNodo = self.packet.getSource()
                 ipNodo = self.bs.getIPbyName(nomeNodo)
+                typeSource = self.packet.getData()
                 self.bs.setNodoON(nomeNodo,ipNodo)      # quando um router se liga ao Bootstrapper adiciona-mos aos nodos ativos
-                data = self.bs.getVizinhosbyName(nomeNodo)
-                packet = Packet("Bootstrapper",ipNodo,2,data)
+                vizinhos = self.bs.getVizinhosbyName(nomeNodo)
+                packet = Packet("Bootstrapper",ipNodo,2,vizinhos)
                 time.sleep(1)
                 self.send(packet,12345)
 
-            # Recebe identificação do RP
-            if self.packetType == 5:
 
-                nomeNodo = self.packet.getSource()
-                ipRP = self.bs.getIPbyName(nomeNodo)
-                self.bs.setIpRP(ipRP)
+                # Quando é um cliente ou servidor manda o IP do RP
+                if typeSource == 3 or typeSource == 4:
+                    packetipRP = Packet("Bootstrapper",ipNodo,5,self.bs.getIpRP())
+                    self.send(packetipRP,12345)
 
-
-            # Recebe pedido para enviar o ip do RP
-            if self.packetType == 6:
-
-                nomeNodo = self.packet.getSource()
-                ipNodo = self.bs.getIPbyName(nomeNodo)
-                ipRP = self.bs.getIpRP()
-                packet = Packet("Bootstrapper",ipNodo,7,ipRP)
-                self.send(packet,12345)
-            
+                # Quando é o RP guarda o Ip do RP
+                if typeSource == 2:
+                    ipRP = self.bs.getIPbyName(nomeNodo)
+                    self.bs.setIpRP(ipRP)
+                    packetipRP = Packet("Bootstrapper",ipRP,5,ipRP)
+                    self.send(packetipRP,12345)
 
 
 

@@ -28,7 +28,7 @@ class TCPReceiver(threading.Thread):
             packet = pickle.loads(data)
 
             # Criar uma thread para tratar o pacote
-            handler_thread = PacketHandlerThread(self.router, self.rp, self.server, self.client, packet)
+            handler_thread = PacketHandlerThread(self.router, self.rp, self.server, self.client, packet, addr[0])
             handler_thread.start()
                 
 
@@ -39,7 +39,7 @@ class TCPReceiver(threading.Thread):
 
 
 class PacketHandlerThread(threading.Thread):
-    def __init__(self, router, rp, servidor, cliente, packet):
+    def __init__(self, router, rp, servidor, cliente, packet, addr):
         super().__init__()
         self.router = router
         self.name = router.getNome()
@@ -49,7 +49,7 @@ class PacketHandlerThread(threading.Thread):
         self.packet = packet
         self.routerType = router.getType()
         self.packetType = packet.getType()
-
+        self.ipOrigem = addr
 
     def run(self):
 
@@ -63,17 +63,17 @@ class PacketHandlerThread(threading.Thread):
         elif self.packetType == 4:
 
             # Quando é o RP
-            if self.routerType == "2":
+            if self.routerType == 2:
                 self.packet.printReceived()
                 source = self.packet.getSource()
                 data = self.packet.getData()
                 self.adicionaVizinho(source, data)
                 cliente = data[0][0]
-                caminho = (cliente, data[::-1])
+                caminho = (cliente, data)
                 self.rp.adicionaCaminho(caminho)
 
 
-            if self.routerType == "1" or self.routerType == "0":
+            if self.routerType == 1 or self.routerType == 0:
                 self.packet.printReceived()
                 source = self.packet.getSource()
                 data = self.packet.getData()
@@ -82,14 +82,55 @@ class PacketHandlerThread(threading.Thread):
 
         
         # Quando recebe o packet do IP RP
-        elif self.packetType == 7:
-            
-            # Apenas o Servidor e o Cliente recebem:
-            if self.routerType == "4" and self.routerType == "3":
-                self.packet.printReceived()
-                ipRP = self.packet.getData()
-                self.server.setIpRP(ipRP)
+        elif self.packetType == 5:
+            self.packet.printReceived()
+            ipRP = self.packet.getData()
+            self.router.setIpRP(ipRP)
+            self.router.getEventIpRP().set()
 
+        # Quando o RP recebe o packet do Servidor a dizer quais vídeos ele possui
+        elif self.packetType == 6:
+            self.packet.printReceived()
+            source = self.packet.getSource()
+            videos = self.packet.getData()
+            self.rp.addServidor(source,videos)
+
+        # Quando o cliente pede um vídeo ao RP
+        elif self.packetType == 7:
+            self.packet.printReceived()
+            data = self.router.getVideosDisponiveis()
+            packetVideos = Packet(self.rp.getNome(),self.ipOrigem,8,data)
+            TCPSender(packetVideos,12345)
+
+        # Quando o cliente recebe os vídeos disponíveis:
+        elif self.packetType == 8:
+            self.packet.printReceived()
+            videosDisponiveis = self.packet.getData()
+            self.client.setVideosDisponiveis(videosDisponiveis)
+            self.client.getEventVideosDisponiveis().set()
+        
+        # Quando o RP recebe o vídeo que o cliente pretende ver
+        elif self.packetType == 9:
+            self.packet.printReceived()
+            nomeCliente = self.packet.getSource()
+            videoCliente = self.packet.getData()
+            self.rp.printArvore()
+            melhorCaminho = self.rp.melhorCaminho(nomeCliente,videoCliente)
+            self.enviaPacketsRP(melhorCaminho,videoCliente)
+        
+        # Quando cada nodo recebe o titulo do video e o nodo para quem deve enviar
+        elif self.packetType == 10:
+            self.packet.printReceived()
+            data = self.packet.getData()
+            self.router.addATransmitir(data[0],data[1])
+
+
+
+
+
+
+
+            
 
 
 
@@ -110,6 +151,14 @@ class PacketHandlerThread(threading.Thread):
                 packet = Packet(self.name,vizinho[1],4,data)
                 time.sleep(1)   # apenas para ver o funcionamento dos packets (senão envia tudo de uma vez)
                 TCPSender(packet,12345)
+
+
+    # Manda o pacote com o nome do video e o vizinho para quem deve enviar
+    def enviaPacketsRP(self,caminho,nomeVideo):
+        for i, nodo in enumerate(caminho[:-1]):
+            data = (nomeVideo,caminho[i+1])
+            packet = Packet("RP",nodo[1],10,data)
+            TCPSender(packet,12345)
 
 
 

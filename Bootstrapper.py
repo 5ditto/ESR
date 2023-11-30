@@ -1,7 +1,7 @@
 import socket, sys
 from TCPBootstrapper import TCPBootstrapper
-
 from TCPReceiver import TCPReceiver
+from UDPReceiver import UDPReceiver
 
 # Como inciar o Bootstrapper: Bootstrapper.py 1 [ficheiroBootstrapper] [portaBootstrapper]
 
@@ -9,13 +9,14 @@ class Bootstrapper:
 
     def __init__(self):
         self.name = socket.gethostname()
-        self.type = sys.argv[1]
+        self.type = int(sys.argv[1])
         self.file = sys.argv[2]
         self.portaBootstrapper = sys.argv[3]
         self.info = {}
         self.nodos = {}
         self.vizinhos = []
         self.IpRP = ""
+        self.aTransmitir = {}
 
         # Atualiza o ficheiro info e o nodos
         self.parserConfig(self.file)
@@ -32,6 +33,10 @@ class Bootstrapper:
         # Colocar TCP à escuta
         serverTCP = TCPReceiver(self,"","","")
         serverTCP.start()
+
+        # Colocar UDP à escuta
+        serverUDP = UDPReceiver()
+        serverUDP.start()
 
 
 
@@ -92,6 +97,20 @@ class Bootstrapper:
     def getNome(self):
         return self.name
             
+
+    def addATransmitir(self,nomeVideo,tuploVizinho):
+        if nomeVideo in self.aTransmitir:
+            self.aTransmitir[nomeVideo].append(tuploVizinho)
+        else:
+            self.aTransmitir[nomeVideo] = [tuploVizinho]
+
+    def rmATransmitir(self, nomeVideo, tuploVizinho):
+        if nomeVideo in self.aTransmitir:
+            if tuploVizinho in self.aTransmitir[nomeVideo]:
+                self.aTransmitir[nomeVideo].remove(tuploVizinho)
+                if not self.aTransmitir[nomeVideo]:
+                    del self.aTransmitir[nomeVideo]
+
 
             
 

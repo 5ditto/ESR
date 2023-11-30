@@ -45,14 +45,23 @@ class Packet:
             msg += "Recebi pedido de Fload\n"
         
         if self.type == 5:
-            msg += "Recebi identificação RP\n"
-
-        if self.type == 6:
-            msg += "Recebi pedido do IP do RP\n"
-
-        if self.type == 7:
             msg += "Recebi IP do RP\n"
         
+        if self.type == 6:
+            msg += "Recebi os vídeos que o Servidor possui\n"
+        
+        if self.type == 7:
+            msg += "Recebi pedido de vídeo do Cliente\n"
+        
+        if self.type == 8:
+            msg += "Recebi os vídeos disponíveis\n"
+        
+        if self.type == 9:
+            msg += "Recebi nome do video selecionado\n"
+        
+        if self.type == 10:
+            msg += "Recebi nome do vídeo a transmitir e para onde devo transmitir\n"
+            
         msg += str(self.data)
         msg += "\n--------------"
         
@@ -79,15 +88,24 @@ class Packet:
         if self.type == 4:
             msg += "Envei Fload\n"
 
-        if self.type == 5:
-            msg += "Enviei identificação RP\n"
 
-        if self.type == 6:
-            msg += "Enviei pedido do IP do RP\n"
-        
-        if self.type == 7:
+        if self.type == 5:
             msg += "Enviei IP do RP\n"
         
+        if self.type == 6:
+            msg += "Enviei vídeos que possuo\n"
+        
+        if self.type == 7:
+            msg += "Enviei pedido de vídeo\n"
+        
+        if self.type == 8:
+            msg += "Enviei vídeos disponíveis\n"
+        
+        if self.type == 9:
+            msg += "Enviei nome do vídeo selecionado\n"
+        
+        if self.type == 10:
+            msg += "Enviei o nome do vídeo a transmitir e para onde\n"
 
 
         msg += str(self.data)
