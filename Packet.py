@@ -88,7 +88,7 @@ class Packet:
 
 
     def printSent(self):
-        msg = "\n[PACKT SENT] "
+        msg = "\n[PACKET SENT] "
         msg += "\nID: " + str(self.id)
         msg += "\nType: " + str(self.type)
         msg += "\nDestination: " + self.destination
@@ -142,4 +142,12 @@ class Packet:
         msg += str(self.data)
         msg += "\n--------------"
         
+        print(msg)
+
+
+    def printSentShort(self):
+        msg = "\n[PACKET SENT] "
+        msg += "Type: " + str(self.type)
+        msg += "|  Dest: " + str(self.destination)
+        msg += "|  MSG: " + str(self.data)
         print(msg)

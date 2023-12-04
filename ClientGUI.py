@@ -5,6 +5,8 @@ from PIL import Image
 from PIL import ImageTk
 from TCPSender import TCPSender
 from Packet import Packet
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 import socket, threading, os
 

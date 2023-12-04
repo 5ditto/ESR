@@ -84,7 +84,8 @@ class PacketHandlerBootstrapper(threading.Thread):
 
 
     def send(self,packet, porta):
-        packet.printSent()
+        #packet.printSent()
+        packet.printSentShort()
         ipDest = packet.getDestination()
         
         try:

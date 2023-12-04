@@ -136,17 +136,17 @@ class RP:
                 for triplo in caminho:            #[n11,n2,n1]
                     nodo = (triplo[0],triplo[1])
                     if nodo in nodosAtivos:
+
                         caminhoAtivo = caminho[:caminho.index(triplo) + 1]        # ERRO
                         if self.calculaLatencia(caminhoAtivo) < latencia:
                             latencia = self.calculaLatencia(caminhoAtivo)
-                            melhorCaminho = [(triplo[0], triplo[1]) for triplo in caminho]
+                            melhorCaminho = [(triplo[0], triplo[1]) for triplo in caminhoAtivo]
             
             else:
                 if self.calculaLatencia(caminho) < latencia:
                     latencia = self.calculaLatencia(caminho)
                     melhorCaminho = [(triplo[0], triplo[1]) for triplo in caminho]
-
-        melhorCaminho = [(self.name,self.ipRP)] + melhorCaminho[::-1]
+                    melhorCaminho = [(self.name,self.ipRP)] + melhorCaminho[::-1]
         print("[STREAM UDP] O melhor caminho é: " , melhorCaminho)
         print("[STREAM UDP] Latência: ", latencia)
         return melhorCaminho

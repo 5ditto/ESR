@@ -8,7 +8,8 @@ class TCPSender:
         self.packet = packet
         self.IPDest = packet.getDestination()
         self.porta = int(porta)
-        self.packet.printSent()
+        #self.packet.printSent()
+        self.packet.printSentShort()
 
         try:
             tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
