@@ -1,4 +1,5 @@
 import random
+import time
 
 
 class Packet:
@@ -7,6 +8,7 @@ class Packet:
         self.id = random.randint(1,100000) 
         self.source = source
         self.destination = destination
+        self.time = time.time()
         self.type = type
         self.data = data
 
@@ -19,6 +21,9 @@ class Packet:
     def getDestination(self):
         return self.destination
     
+    def getTime(self):
+        return self.time
+    
     def getType(self):
         return self.type
     
@@ -30,6 +35,7 @@ class Packet:
         msg += "\nID: " + str(self.id)
         msg += "\nType: " + str(self.type)
         msg += "\nSource: " + self.source
+        msg += "\nTime: " + str(self.time)
         msg += "\nMSG: "
 
         if self.type == 1:
@@ -61,7 +67,19 @@ class Packet:
         
         if self.type == 10:
             msg += "Recebi nome do vídeo a transmitir e para onde devo transmitir\n"
+
+        if self.type == 11:
+            msg += "Recebi pedido do RP para transmitir vídeo\n"
             
+        if self.type == 12:
+            msg += "Recebi pedido do Cliente para terminar de enviar vídeo\n"
+
+        if self.type == 13:
+            msg += "Recebi pedido do RP para não reencaminhar a stream\n"
+
+        if self.type == 14:
+            msg += "Recebi pedido do RP para não transmitir mais a stream\n"
+
         msg += str(self.data)
         msg += "\n--------------"
         
@@ -74,6 +92,7 @@ class Packet:
         msg += "\nID: " + str(self.id)
         msg += "\nType: " + str(self.type)
         msg += "\nDestination: " + self.destination
+        msg += "\nTime: " + str(self.time)
         msg += "\nMSG: " 
 
         if self.type == 1:
@@ -106,6 +125,18 @@ class Packet:
         
         if self.type == 10:
             msg += "Enviei o nome do vídeo a transmitir e para onde\n"
+        
+        if self.type == 11:
+            msg += "Enviei ao servidor para transmitir vídeo\n"
+
+        if self.type == 12:
+            msg += "Enviei ao RP instrução para não receber mais vídeo\n"
+
+        if self.type == 13:
+            msg += "Enviei ao Nodo para parar de reencaminhar a stream\n"
+
+        if self.type == 14:
+            msg += "Enviei ao Servidor para parar de transmitir a stream\n"
 
 
         msg += str(self.data)

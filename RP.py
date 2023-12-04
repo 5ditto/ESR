@@ -16,9 +16,11 @@ class RP:
         self.portaBootstrapper = sys.argv[3]
         self.gotVizinhos = threading.Event()
         self.vizinhos = []
+
+        self.nodosAtivos = {}
+        self.clientesAtivos = {}    # guarda o cliente e o vídeo e o caminho até ao cliente  
         self.arvore = {}        # dicionario com um array de caminhos (arrays)
-        self.servidores = {}    # para saber quais os servidores com os videos que tem ex: {'n1':['videoA','videoB']}
-        self.nodosAtivos = {}       # dicionario com os nodos ativos e os videos que estão a reproduzir
+        self.videos = {}
         self.ipRP = ""
         self.gotIpRP = threading.Event()
         self.aTransmitir = {}
@@ -28,7 +30,7 @@ class RP:
         serverTCP.start()
 
         # Colocar UDP à escuta
-        serverUDP = UDPReceiver()
+        serverUDP = UDPReceiver(self)
         serverUDP.start()
 
         # Pedir vizinhos ao Bootstrapper
@@ -39,11 +41,6 @@ class RP:
         self.gotIpRP.wait()
 
 
-        # Quando receber pedido para o Servidor enviar o video mostrar a árvore que possui e selecionar 
-        # o caminho mais próximo através de saltos para já
-
-        # depois mandar mensagem a todos os nodos para onde é que devem enviar o pacote de video
-        # enviar o pacote de vídeo até ao cliente 
 
 
     def setVizinhos(self,vizinhos):
@@ -61,8 +58,11 @@ class RP:
     def getType(self):
         return self.type
 
-    def addServidor(self,server,videos):
-        self.servidores[server] = videos
+
+    def addVideos(self,server,videos):
+        for video in videos:
+            if video not in self.videos:
+                self.videos[video] = server
     
     def setIpRP(self,ip):
         self.ipRP = ip
@@ -70,15 +70,36 @@ class RP:
     def getEventIpRP(self):
         return self.gotIpRP
 
+    def getVideos(self):
+        return self.videos
+
+    def getNodosAtivos(self):
+        return self.nodosAtivos
 
     # adiciona um caminho à árvore do tipo "('n7',[('n1','10.0.0.1'),('n7','10.0.3.20')])"
-    def adicionaCaminho(self,caminho):
-            if caminho[0] in self.arvore:
-                if caminho[1] not in self.arvore[caminho[0]]:
-                    self.arvore[caminho[0]].append(caminho[1])
-            else:
-                self.arvore[caminho[0]] = [caminho[1]]
+    def adicionaCaminho(self,cliente, caminho):
+            
+            
+            if cliente in self.arvore:
 
+                for caminhoArvore in self.arvore[cliente]:
+                    if self.compararCaminho(caminho,caminhoArvore):
+                        self.arvore[cliente].remove(caminhoArvore)
+                        self.arvore[cliente].append(caminho)
+                        return
+                self.arvore[cliente].append(caminho)
+                    
+
+            else:
+                self.arvore[cliente] = [caminho]
+
+    def compararCaminho(self,caminhoAtual,caminho):
+        caminhoArvore = [triplo[0] for triplo in caminho]
+        caminhoNovo = [triplo[0] for triplo in caminhoAtual]
+        if caminhoArvore == caminhoNovo:
+            return True
+        else:
+            return False
     
 
     def printArvore(self):
@@ -96,114 +117,98 @@ class RP:
                 print("--------")
                 nodoanterior = nodo
 
-
+    
     def getVideosDisponiveis(self):
-        videosDisponiveis = []
-        for server, videos in self.servidores.items():
-            for video in videos:
-                if video not in videosDisponiveis:
-                    videosDisponiveis.append(video)
-        return videosDisponiveis
+        return list(self.videos.keys())
 
 
 
+    def melhorCaminho(self,nomeCliente, nomeVideo):
+        melhorCaminho = []
+        latencia = 999999.99
+        caminhosCliente = self.arvore[nomeCliente]
 
+        for caminho in caminhosCliente:
 
-    def melhorCaminho(self,cliente,nomeVideo):
-        melhorCaminho  = []
-        size = 9999
-        #caminhosTotal = []
-        servidoresComVideo = []
-        # Quais servidores têm o vídeo:
-        for server, videos in self.servidores.items():
-            if nomeVideo in videos:
-                servidoresComVideo.append(server)
-
-        caminhosCliente = self.arvore[cliente]
-        caminhosServidor = self.caminhosServidor(servidoresComVideo)
-        for caminhoCliente in caminhosCliente:
-            for caminhoServidor in caminhosServidor:
-                #self.caminhoClienteServidor(caminhoCliente,caminhoServidor,caminhosTotal)
-                 melhorCaminho,size = self.caminhoClienteServidor(caminhoCliente, caminhoServidor,melhorCaminho,size,nomeVideo) # para já por saltos
-        self.adddNodosAtivo(melhorCaminho,nomeVideo)
-        print(melhorCaminho[::-1])
-        print(self.nodosAtivos)
-        return melhorCaminho[::-1]
-    
-
-
-    def caminhoClienteServidor(self, caminhoCliente, caminhoServidor,melhorCaminho,size,nomeVideo):
-        caminhoClienteAux = caminhoCliente + [(self.name,self.ipRP)] + caminhoServidor[::-1]
-        if len(caminhoClienteAux) < size:
-            melhorCaminho = caminhoClienteAux
-            size = len(melhorCaminho)
-
-        # Quando há nodos já a transmitir o vídeo        
-        for nodoC in caminhoClienteAux:
-            if nodoC in self.nodosAtivos:
-                if nomeVideo in self.nodosAtivos[nodoC]:
-                    indexNA = caminhoClienteAux.index(nodoC)
-                    newCaminho = caminhoClienteAux[:indexNA + 1]
-                    if len(newCaminho) < size:
-                        melhorCaminho = newCaminho
-                        size = len(melhorCaminho)
-        
-        # Quando há um melhor caminho que não passe pelo RP
-        for nodoC in caminhoCliente:
-                if nodoC in caminhoServidor:
-                    indexS = caminhoServidor.index(nodoC)
-                    indexC = caminhoCliente.index(nodoC)
-                    caminhoC = caminhoCliente[:indexC + 1]
-                    caminhoS = caminhoServidor[indexS:][::-1]
-                    caminhoClienteAux = caminhoC + caminhoS
-                    if len(caminhoClienteAux < size):
-                        melhorCaminho = caminhoClienteAux
-                        size = len(melhorCaminho)
-        return (melhorCaminho,size)
-
-
-    # Calcula todos os caminhos possíveis
-    #def caminhoClienteServidor(self, caminhoCliente, caminhoServidor,caminhosTotal):
-    #    caminhoClienteAux = caminhoCliente + [('RP','0.0.0.0')]
-    #    caminhosTotal.append(caminhoClienteAux + caminhoServidor[::-1])
-    #    for nodoC in caminhoCliente:
-    #            if nodoC in caminhoServidor:
-    #                indexS = caminhoServidor.index(nodoC)
-    #                indexC = caminhoCliente.index(nodoC)
-    #                caminhoC = caminhoCliente[:indexC + 1]
-    #                caminhoS = caminhoServidor[indexS:][::-1]
-    #                caminhosTotal.append(caminhoC+ caminhoS)
-
-    def caminhosServidor(self,servidores):
-        caminhosTotal = []
-        for nomeServidor, caminhos in self.arvore.items():
-            if nomeServidor in servidores:
-                caminhosTotal += caminhos
-        return caminhosTotal
-        
-    def adddNodosAtivo(self,caminho,video):
-        for nodo in caminho:
-            if nodo in self.nodosAtivos:
-                if video not in self.nodosAtivos[nodo]:
-                    self.nodosAtivos[nodo].append(video)
+            # verificar se há nodo a transmitir
+            if nomeVideo in list(self.nodosAtivos.keys()):  #  [movie.Mjpeg]
+                nodosAtivos = self.nodosAtivos[nomeVideo]   # [(n3,111),(n1,111),(n2,111)]
+                for triplo in caminho:            #[n11,n2,n1]
+                    nodo = (triplo[0],triplo[1])
+                    if nodo in nodosAtivos:
+                        caminhoAtivo = caminho[:caminho.index(triplo) + 1]        # ERRO
+                        if self.calculaLatencia(caminhoAtivo) < latencia:
+                            latencia = self.calculaLatencia(caminhoAtivo)
+                            melhorCaminho = [(triplo[0], triplo[1]) for triplo in caminho]
+            
             else:
-                self.nodosAtivos[nodo] = [video]        
+                if self.calculaLatencia(caminho) < latencia:
+                    latencia = self.calculaLatencia(caminho)
+                    melhorCaminho = [(triplo[0], triplo[1]) for triplo in caminho]
+
+        melhorCaminho = [(self.name,self.ipRP)] + melhorCaminho[::-1]
+        print("[STREAM UDP] O melhor caminho é: " , melhorCaminho)
+        print("[STREAM UDP] Latência: ", latencia)
+        return melhorCaminho
     
+
+    def calculaLatencia(self,caminho):
+        latencia = 0.0
+        for _, _, tempo in caminho:
+            latencia += tempo
+        return latencia
+
+    # pode haver nodos repetidos
+    def addNodoAtivo(self,nomeVideo,nodo):
+        if nomeVideo in self.nodosAtivos:
+            self.nodosAtivos[nomeVideo].append(nodo)
+        else:
+            self.nodosAtivos[nomeVideo] = [nodo]
+
+    # Adiciona ao dicionário para quem está a transmitir o nome do vídeo e o nodo
     def addATransmitir(self,nomeVideo,tuploVizinho):
         if nomeVideo in self.aTransmitir:
             self.aTransmitir[nomeVideo].append(tuploVizinho)
+            if tuploVizinho not in self.aTransmitir[nomeVideo] :
+                print("[STREAM UDP] Estou a transmitir o vídeo " + nomeVideo + " para o nodo " + tuploVizinho[0])
+                print("[STREAM UDP] {A Transmitir}:" , self.aTransmitir)
         else:
             self.aTransmitir[nomeVideo] = [tuploVizinho]
-
-    def rmATransmitir(self, nomeVideo, tuploVizinho):
-        if nomeVideo in self.aTransmitir:
-            if tuploVizinho in self.aTransmitir[nomeVideo]:
-                self.aTransmitir[nomeVideo].remove(tuploVizinho)
-                if not self.aTransmitir[nomeVideo]:
-                    del self.aTransmitir[nomeVideo]
+            print("[STREAM UDP] Estou a transmitir o vídeo " + nomeVideo + " para o nodo " + tuploVizinho[0])
+            print("[STREAM UDP] {A Transmitir}:" , self.aTransmitir)
 
 
 
+    def rmATransmitir(self,nomeVideo,tuploVizinho):
+        self.aTransmitir[nomeVideo].remove(tuploVizinho)
+        if tuploVizinho not in self.aTransmitir[nomeVideo]:
+            print("[STREAM UDP] Parei de transmitir o vídeo " + nomeVideo + " para o nodo " + tuploVizinho[0])
+            print("[STREAM UDP] {A Transmitir}:" , self.aTransmitir)
+
+
+    def addClienteAtivo(self,nomeVideo,nomeCliente,caminho):
+        tuplo = (nomeCliente,nomeVideo)
+        self.clientesAtivos[tuplo] = caminho
+
+    def getClientesAtivos(self):
+        return self.clientesAtivos
+
+    def getATransmitir(self):
+        return self.aTransmitir
+    
+    def removeClienteAtivo(self,nomeCliente,nomeVideo):
+        tuplo = (nomeCliente,nomeVideo)
+        self.clientesAtivos.pop(tuplo)
+    
+    def removeNodoAtivo(self,nomeVideo,tuplo):
+        self.nodosAtivos[nomeVideo].remove(tuplo)
+
+    def printControlUDP(self):
+        print("[CONTROL UDP]")
+        print("{Videos Disponíveis}: ", self.videos)
+        print("{Nodos Ativos}: ", self.nodosAtivos)
+        print("{Clientes Ativos}", self.clientesAtivos)
+        print("--------------------")
 
 
 

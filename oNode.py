@@ -28,7 +28,7 @@ class oNode:
         serverTCP.start()
 
         # Colocar UDP à escuta
-        serverUDP = UDPReceiver()
+        serverUDP = UDPReceiver(self)
         serverUDP.start()
 
         # Pedir vizinhos ao Bootstrapper
@@ -56,20 +56,27 @@ class oNode:
 
     def getEventVizinhos(self):
         return self.gotVizinhos
-    
+
+    # Adiciona ao dicionário para quem está a transmitir o nome do vídeo e o nodo
     def addATransmitir(self,nomeVideo,tuploVizinho):
         if nomeVideo in self.aTransmitir:
             self.aTransmitir[nomeVideo].append(tuploVizinho)
+            if tuploVizinho not in self.aTransmitir[nomeVideo]:
+                print("[STREAM UDP] Estou a transmitir o vídeo " + nomeVideo + " para o nodo " + tuploVizinho[0])
+                print("[STREAM UDP] {A Transmitir}:" , self.aTransmitir)
         else:
             self.aTransmitir[nomeVideo] = [tuploVizinho]
+            print("[STREAM UDP] Estou a transmitir o vídeo " + nomeVideo + " para o nodo " + tuploVizinho[0])
+            print("[STREAM UDP] {A Transmitir}:" , self.aTransmitir)
+    
+    def getATransmitir(self):
+        return self.aTransmitir
 
-    def rmATransmitir(self, nomeVideo, tuploVizinho):
-        if nomeVideo in self.aTransmitir:
-            if tuploVizinho in self.aTransmitir[nomeVideo]:
-                self.aTransmitir[nomeVideo].remove(tuploVizinho)
-                if not self.aTransmitir[nomeVideo]:
-                    del self.aTransmitir[nomeVideo]
-
+    def rmATransmitir(self,nomeVideo,tuploVizinho):
+        self.aTransmitir[nomeVideo].remove(tuploVizinho)
+        if tuploVizinho not in self.aTransmitir[nomeVideo]:
+            print("[STREAM UDP] Parei de transmitir o vídeo " + nomeVideo + " para o nodo " + tuploVizinho[0])
+            print("[STREAM UDP] {A Transmitir}:" , self.aTransmitir)
 
 
 router = oNode()

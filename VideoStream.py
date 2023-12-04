@@ -18,8 +18,14 @@ class VideoStream:
 			self.frameNum += 1
 		return data
 		
-	def frameNbr(self):
-		"""Get frame number."""
+	def frameNumber(self):
+		"""Get frame number.""" 
 		return self.frameNum
+
+    
+	def seek(self):
+		"""Move the pointer to the specified position or the beginning if not specified."""
+		self.file.close()
+		self.file = open(self.filename, 'rb')
 	
 	

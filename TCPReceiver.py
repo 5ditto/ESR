@@ -67,17 +67,18 @@ class PacketHandlerThread(threading.Thread):
                 self.packet.printReceived()
                 source = self.packet.getSource()
                 data = self.packet.getData()
-                self.adicionaVizinho(source, data)
+                time = self.packet.getTime()
+                self.adicionaVizinho(source, data, time)
                 cliente = data[0][0]
-                caminho = (cliente, data)
-                self.rp.adicionaCaminho(caminho)
+                self.rp.adicionaCaminho(cliente,data)
 
 
             if self.routerType == 1 or self.routerType == 0:
                 self.packet.printReceived()
                 source = self.packet.getSource()
                 data = self.packet.getData()
-                self.adicionaVizinho(source,data)
+                time = self.packet.getTime()
+                self.adicionaVizinho(source,data,time)
                 self.enviaPackets(data)
 
         
@@ -93,7 +94,7 @@ class PacketHandlerThread(threading.Thread):
             self.packet.printReceived()
             source = self.packet.getSource()
             videos = self.packet.getData()
-            self.rp.addServidor(source,videos)
+            self.rp.addVideos((source,self.ipOrigem),videos)
 
         # Quando o cliente pede um vídeo ao RP
         elif self.packetType == 7:
@@ -113,21 +114,50 @@ class PacketHandlerThread(threading.Thread):
         elif self.packetType == 9:
             self.packet.printReceived()
             nomeCliente = self.packet.getSource()
-            videoCliente = self.packet.getData()
+            nomeVideo = self.packet.getData()
             self.rp.printArvore()
-            melhorCaminho = self.rp.melhorCaminho(nomeCliente,videoCliente)
-            self.enviaPacketsRP(melhorCaminho,videoCliente)
-        
+            melhorCaminho = self.rp.melhorCaminho(nomeCliente,nomeVideo)
+            videosAtivos = list(self.rp.getNodosAtivos().keys())
+            if nomeVideo not in videosAtivos:
+                self.enviaPacketRPtoServidor(nomeVideo)
+            self.enviaPacketsRP(melhorCaminho,nomeVideo,nomeCliente)
+
+
+
         # Quando cada nodo recebe o titulo do video e o nodo para quem deve enviar
         elif self.packetType == 10:
             self.packet.printReceived()
             data = self.packet.getData()
             self.router.addATransmitir(data[0],data[1])
 
+        # Quando o servidor recebe uma mensagem para transmitir o vídeo
+        elif self.packetType == 11:
+            self.packet.printReceived()
+            data = self.packet.getData()
+            self.router.addVideosATransmitir(data)
 
+        # Quando o cliente manda a dizer que nao quer mais video
+        elif self.packetType == 12:
+            self.packet.printReceived()
+            nomeCliente = self.packet.getSource()
+            nomeVideo = self.packet.getData()
+            self.terminaVideo(nomeCliente,nomeVideo)
+            self.router.printControlUDP()
 
+            
+        # Remover do dic aTransmitir
+        elif self.packetType == 13:
+            self.packet.printReceived()
+            data = self.packet.getData()
+            nomeVideo = data[0]
+            nodo = data[1]
+            self.router.rmATransmitir(nomeVideo,nodo)
 
-
+        # Parar de transmitir o vídeo
+        elif self.packetType == 14:
+            self.packet.printReceived()
+            data = self.packet.getData()
+            self.router.rmATransmitir(data)
 
 
             
@@ -137,36 +167,70 @@ class PacketHandlerThread(threading.Thread):
 
 
     # Método para adicionar o vizinho que lhe enviou o packet ao caminho
-    def adicionaVizinho(self,nodo,data):
+    def adicionaVizinho(self,nodo,data,timePacket):
         for vizinho in self.router.getVizinhos():
             if vizinho[0] == nodo:
-                data.append(vizinho)
+                tuplo = vizinho
+                break
+        tempoAtual = time.time()
+        triplo = (tuplo[0],tuplo[1],round((tempoAtual-timePacket)*1000,2))
+        data.append(triplo)
 
 
     # Método para enviar dados aos seus vizinhos ao fazer fload
     def enviaPackets(self,data):
-        
+        caminho = [(nome, ip) for nome, ip, _ in data]
+
         for vizinho in self.router.getVizinhos():
-            if vizinho not in data:
+            if vizinho not in caminho:
                 packet = Packet(self.name,vizinho[1],4,data)
                 time.sleep(1)   # apenas para ver o funcionamento dos packets (senão envia tudo de uma vez)
                 TCPSender(packet,12345)
 
 
     # Manda o pacote com o nome do video e o vizinho para quem deve enviar
-    def enviaPacketsRP(self,caminho,nomeVideo):
+    def enviaPacketsRP(self,caminho,nomeVideo,nomeCliente):
+        self.rp.addClienteAtivo(nomeVideo,nomeCliente,caminho)
         for i, nodo in enumerate(caminho[:-1]):
             data = (nomeVideo,caminho[i+1])
             packet = Packet("RP",nodo[1],10,data)
             TCPSender(packet,12345)
+            self.rp.addNodoAtivo(nomeVideo,nodo)
+        self.router.printControlUDP()
+
+
+    def enviaPacketRPtoServidor(self,nomeVideo):
+        videos = self.router.getVideos()
+        nodo = videos[nomeVideo]
+        packet = Packet("RP",nodo[1],11,nomeVideo)
+        TCPSender(packet,12345)
 
 
 
 
 
+    def terminaVideo(self,nomeCliente,nomeVideo):
+        # eliminar dos clientes ativos 
+        # para o caminho dos clientes ativos enviar um packet para removerem dos aTransmitr
+        # remover dos nodos ativos uma entrada e caso depois o array fique vazio temos que avisar o servidor
+
+        clientesAtivos = self.router.getClientesAtivos()
+        listaNodos = clientesAtivos[(nomeCliente,nomeVideo)]
+        for i, nodo in enumerate(listaNodos):
+            if i + 1 < len(listaNodos):
+                tuplo = (nomeVideo,listaNodos[i+1])
+                packet = Packet("RP",nodo[1],13,tuplo)
+                TCPSender(packet,12345)
+                self.router.removeNodoAtivo(nomeVideo,nodo)
+        
+        if (not self.router.getNodosAtivos()[nomeVideo]):
+            self.router.getNodosAtivos().pop(nomeVideo)
+            server = self.router.getVideos()[nomeVideo]
+            packetServer = Packet("RP",server[1],14,nomeVideo)
+            TCPSender(packetServer,12345)
 
 
-
+        self.router.removeClienteAtivo(nomeCliente,nomeVideo)
         
 
 

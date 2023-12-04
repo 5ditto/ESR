@@ -4,7 +4,9 @@ import socket, sys, threading
 from Packet import Packet
 from TCPReceiver import TCPReceiver
 from TCPSender import TCPSender
-from UDPReceiver import UDPReceiver
+from tkinter import Tk
+from ClientGUI import ClientGUI
+
 
 # Como inciar o Cliente: Client.py 3 [ipBootstrapper] [portaBootstrapper] 
 
@@ -15,21 +17,18 @@ class Client:
         self.type = int(sys.argv[1])
         self.ipBootstrapper = sys.argv[2]
         self.portaBootstrapper = sys.argv[3]
-        self.gotVizinhos = threading.Event()
-        self.gotIpRP = threading.Event()
-        self.gotVideosDisponiveis = threading.Event()
         self.vizinhos = []
         self.ipRP = ""
         self.videosDisponiveis = []
-        self.nodosAtivos = {} 
+
+        self.gotVizinhos = threading.Event()
+        self.gotIpRP = threading.Event()
+        self.gotVideosDisponiveis = threading.Event()
+
 
         # Colocar TCP à escuta
         serverTCP = TCPReceiver(self,"","",self)
         serverTCP.start()
-
-        # Colocar UDP à escuta
-        serverUDP = UDPReceiver()
-        serverUDP.start()
 
         # Pedir vizinhos ao Bootstrapper
         packetVizinhos = Packet(self.name,self.ipBootstrapper,1,self.type)
@@ -43,7 +42,14 @@ class Client:
             packetFload = Packet(self.name,vizinho[1],4,[])
             TCPSender(packetFload,12345)
 
-        self.menuVideos()
+        while 1:
+
+            videoName = self.menuVideos()
+
+            root = Tk()
+            video = ClientGUI(root,self.name,self.ipRP,videoName)
+            video.master.title("Cliente " + self.name)
+            root.mainloop()
 
 
 
@@ -91,17 +97,23 @@ class Client:
         print("+-------------------------+")
         print("| 1 - Vídeos Disponíveis  |")
         print("+-------------------------+")
-        if int(input()) == 1:
+
+        opcao = 0
+        while opcao != 1:
+            opcao = int(input("Selecione a opção: "))
+
+        if opcao == 1:
             # Pede vídeo ao RP
             packetPedirVideo = Packet(self.name,self.ipRP,7,"Quais vídeos estão Disponíveis?")
             TCPSender(packetPedirVideo,12345)
             self.gotVideosDisponiveis.wait()
             self.printVideosDisponíveis()
+            self.gotVideosDisponiveis.clear()
             video = ""
             while video not in self.videosDisponiveis:
                 video = input("Selecione o vídeo: ")
-            packetVideo = Packet(self.name, self.ipRP,9,video)
-            TCPSender(packetVideo,12345)
+            return video
+
             
                 
 
