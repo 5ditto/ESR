@@ -116,7 +116,7 @@ class SendUDPPacket(threading.Thread):
         udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         while self.videoName in videosName:
-            time.sleep(0.04)
+            time.sleep(0.05)
             data = self.video.nextFrame()
             if data:
                 frameNumber = self.video.frameNumber()

@@ -17,7 +17,7 @@ class UDPReceiver(threading.Thread):
         UDPServerSocket.bind(('', 1234))
 
         while True:
-            packet, addr = UDPServerSocket.recvfrom(20480)
+            packet, addr = UDPServerSocket.recvfrom(22528)
             # tratar do pacote que recebeu (provavelmente enviar para os vizinhos)
             # criar outra thread para tratar cada pacote RTP
 
@@ -40,9 +40,7 @@ class PacketHandlerThread(threading.Thread):
     def run(self):
 
         videosON = self.router.getATransmitir()
-        listaNodos = videosON[self.videoName]
-        enviarPackets = list(dict.fromkeys(listaNodos))  # para remover os repetidos
-        for nodo in enviarPackets:
+        for nodo in videosON[self.videoName]:
             self.enviarPacketVideo(nodo[1])
 
     

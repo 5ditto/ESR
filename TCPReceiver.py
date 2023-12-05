@@ -116,10 +116,9 @@ class PacketHandlerThread(threading.Thread):
             nomeCliente = self.packet.getSource()
             nomeVideo = self.packet.getData()
             self.rp.printArvore()
-            melhorCaminho = self.rp.melhorCaminho(nomeCliente,nomeVideo)
-            videosAtivos = list(self.rp.getNodosAtivos().keys())
-            if nomeVideo not in videosAtivos:
+            if not any(nomeVideo == tuplo[1] for tuplo in list(self.rp.getClientesAtivos().keys())):
                 self.enviaPacketRPtoServidor(nomeVideo)
+            melhorCaminho = self.rp.melhorCaminho(nomeCliente,nomeVideo)
             self.enviaPacketsRP(melhorCaminho,nomeVideo,nomeCliente)
 
 
@@ -190,12 +189,10 @@ class PacketHandlerThread(threading.Thread):
 
     # Manda o pacote com o nome do video e o vizinho para quem deve enviar
     def enviaPacketsRP(self,caminho,nomeVideo,nomeCliente):
-        self.rp.addClienteAtivo(nomeVideo,nomeCliente,caminho)
         for i, nodo in enumerate(caminho[:-1]):
             data = (nomeVideo,caminho[i+1])
             packet = Packet("RP",nodo[1],10,data)
             TCPSender(packet,12345)
-            self.rp.addNodoAtivo(nomeVideo,nodo)
         self.router.printControlUDP()
 
 
@@ -210,30 +207,29 @@ class PacketHandlerThread(threading.Thread):
 
 
     def terminaVideo(self,nomeCliente,nomeVideo):
-        # eliminar dos clientes ativos 
-        # para o caminho dos clientes ativos enviar um packet para removerem dos aTransmitr
-        # remover dos nodos ativos uma entrada e caso depois o array fique vazio temos que avisar o servidor
 
-        clientesAtivos = self.router.getClientesAtivos()
-        listaNodos = clientesAtivos[(nomeCliente,nomeVideo)]
+        listaNodos = self.router.removeClienteAtivo(nomeCliente,nomeVideo)
+
         for i, nodo in enumerate(listaNodos):
             if i + 1 < len(listaNodos):
-                tuplo = (nomeVideo,listaNodos[i+1])
-                packet = Packet("RP",nodo[1],13,tuplo)
-                TCPSender(packet,12345)
-                self.router.removeNodoAtivo(nomeVideo,nodo)
-        
-        if (not self.router.getNodosAtivos()[nomeVideo]):
-            self.router.getNodosAtivos().pop(nomeVideo)
+                if self.transmissãoON(listaNodos[i],listaNodos[i+1],nomeVideo) == False:
+                    tuplo = (nomeVideo,listaNodos[i+1])
+                    packet = Packet("RP",nodo[1],13,tuplo)
+                    TCPSender(packet,12345)
+                
+        # quando não há ninguém a consumir aquele vídeo
+        if not any(nomeVideo == tuplo[1] for tuplo in list(self.rp.getClientesAtivos().keys())):
             server = self.router.getVideos()[nomeVideo]
             packetServer = Packet("RP",server[1],14,nomeVideo)
             TCPSender(packetServer,12345)
-
-
-        self.router.removeClienteAtivo(nomeCliente,nomeVideo)
         
 
-
-
-
-
+    
+    def transmissãoON(self,nodo,vizinho,nomeVideo):
+        for tuplo, caminho in list(self.router.getClientesAtivos().items()):
+            if tuplo[1] == nomeVideo:
+                for i,_  in enumerate(caminho):
+                    if i+1 < len(caminho):
+                        if nodo == caminho[i] and vizinho == caminho[i+1]:
+                            return True
+        return False

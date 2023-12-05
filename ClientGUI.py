@@ -99,7 +99,7 @@ class ClientGUI:
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
 		while True:
-				data = self.rtpSocket.recv(20480)
+				data = self.rtpSocket.recv(22528)
 				if data:
 					packet = pickle.loads(data)
 

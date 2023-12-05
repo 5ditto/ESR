@@ -17,7 +17,6 @@ class RP:
         self.gotVizinhos = threading.Event()
         self.vizinhos = []
 
-        self.nodosAtivos = {}
         self.clientesAtivos = {}    # guarda o cliente e o vídeo e o caminho até ao cliente  
         self.arvore = {}        # dicionario com um array de caminhos (arrays)
         self.videos = {}
@@ -73,8 +72,6 @@ class RP:
     def getVideos(self):
         return self.videos
 
-    def getNodosAtivos(self):
-        return self.nodosAtivos
 
     # adiciona um caminho à árvore do tipo "('n7',[('n1','10.0.0.1'),('n7','10.0.3.20')])"
     def adicionaCaminho(self,cliente, caminho):
@@ -128,42 +125,50 @@ class RP:
         latencia = 999999.99
         caminhosCliente = self.arvore[nomeCliente]
 
+        complemento = []
+        flagON = 0
+
+
         for caminho in caminhosCliente:
 
             # verificar se há nodo a transmitir
-            if nomeVideo in list(self.nodosAtivos.keys()):  #  [movie.Mjpeg]
-                nodosAtivos = self.nodosAtivos[nomeVideo]   # [(n3,111),(n1,111),(n2,111)]
-                for triplo in caminho:            #[n11,n2,n1]
-                    nodo = (triplo[0],triplo[1])
-                    if nodo in nodosAtivos:
-
-                        caminhoAtivo = caminho[:caminho.index(triplo) + 1]        # ERRO
-                        if self.calculaLatencia(caminhoAtivo) < latencia:
-                            latencia = self.calculaLatencia(caminhoAtivo)
-                            melhorCaminho = [(triplo[0], triplo[1]) for triplo in caminhoAtivo]
+            for tuplo, caminhoAtivo in self.clientesAtivos.items():
+                if tuplo[1] == nomeVideo:
+                    for triplo in caminho:
+                        for nodo in caminhoAtivo:
+                            if triplo[0] == nodo[0]:
+                                indexTriplo = caminho.index(triplo)
+                                caminhoAtual = caminho[:indexTriplo +1]
+                                
+                                if self.calculaLatencia(caminhoAtual) < latencia:
+                                    melhorCaminho = [(t[0], t[1]) for t in caminhoAtual[::-1]]
+                                    latencia = self.calculaLatencia(caminhoAtual)
+                                    indexNodo = caminhoAtivo.index(nodo)
+                                    complemento = caminhoAtivo[:indexNodo]
+                                    flagON = 1
+                                    
             
-            else:
-                if self.calculaLatencia(caminho) < latencia:
-                    latencia = self.calculaLatencia(caminho)
-                    melhorCaminho = [(triplo[0], triplo[1]) for triplo in caminho]
-                    melhorCaminho = [(self.name,self.ipRP)] + melhorCaminho[::-1]
+            if self.calculaLatencia(caminho) < latencia:
+                latencia = self.calculaLatencia(caminho)
+                melhorCaminho = [(triplo[0], triplo[1]) for triplo in caminho]
+                melhorCaminho = [(self.name,self.ipRP)] + melhorCaminho[::-1]
+
+        if flagON == 1:
+            self.clientesAtivos[(nomeCliente,nomeVideo)] = complemento + melhorCaminho
+        else:
+            self.clientesAtivos[(nomeCliente,nomeVideo)] = melhorCaminho
         print("[STREAM UDP] O melhor caminho é: " , melhorCaminho)
         print("[STREAM UDP] Latência: ", latencia)
         return melhorCaminho
-    
 
+    
     def calculaLatencia(self,caminho):
         latencia = 0.0
         for _, _, tempo in caminho:
             latencia += tempo
         return latencia
 
-    # pode haver nodos repetidos
-    def addNodoAtivo(self,nomeVideo,nodo):
-        if nomeVideo in self.nodosAtivos:
-            self.nodosAtivos[nomeVideo].append(nodo)
-        else:
-            self.nodosAtivos[nomeVideo] = [nodo]
+
 
     # Adiciona ao dicionário para quem está a transmitir o nome do vídeo e o nodo
     def addATransmitir(self,nomeVideo,tuploVizinho):
@@ -192,21 +197,23 @@ class RP:
 
     def getClientesAtivos(self):
         return self.clientesAtivos
+    
+    
+    def removeClienteAtivo(self,nomeCliente,nomeVideo):
+        tuplo = (nomeCliente,nomeVideo)
+        return self.clientesAtivos.pop(tuplo)
+    
 
     def getATransmitir(self):
         return self.aTransmitir
     
-    def removeClienteAtivo(self,nomeCliente,nomeVideo):
-        tuplo = (nomeCliente,nomeVideo)
-        self.clientesAtivos.pop(tuplo)
     
-    def removeNodoAtivo(self,nomeVideo,tuplo):
-        self.nodosAtivos[nomeVideo].remove(tuplo)
+
+
 
     def printControlUDP(self):
         print("[CONTROL UDP]")
         print("{Videos Disponíveis}: ", self.videos)
-        print("{Nodos Ativos}: ", self.nodosAtivos)
         print("{Clientes Ativos}", self.clientesAtivos)
         print("--------------------")
 
