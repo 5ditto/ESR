@@ -84,7 +84,13 @@ class Packet:
             msg += "Recebi pedido do Bootstrapper para apagar a árvore\n"
         
         if self.type == 16:
-            msg += "Recebi pedido do Bootstrapper para enviar fload\n"
+            msg += "Recebi o nodo que se desconectou\n"
+
+        if self.type == 17:
+            msg += "Recebi mensagem para limpar o campo aTransmitir\n"
+
+        if self.type == 18:
+            msg += "Recebi mensagem para inciar fload pela rede\n"
 
 
         msg += str(self.data)
@@ -149,8 +155,13 @@ class Packet:
             msg += "Envie ao RP para apagar a árvore\n"
         
         if self.type == 16:
-            msg += "Enviei aos Clientes para começarem a fazer fload\n"
+            msg += "Enviei o nodo que se desconectou\n"
+        
+        if self.type == 17:
+            msg += "Enviei mensagem para limpar o campo aTransmitir\n"
 
+        if self.type == 18:
+            msg += "Enviei mensagem para inciar fload pela rede\n"
 
         msg += str(self.data)
         msg += "\n--------------"

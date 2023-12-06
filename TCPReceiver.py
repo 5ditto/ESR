@@ -168,16 +168,31 @@ class PacketHandlerThread(threading.Thread):
             self.packet.printReceived()
             self.router.clearInfo()
         
-        # Quando o cliente volta a fazer fload
-        elif self.packetType == 16 and self.routerType == 3:
+        # O RP recebe o nodo que se desconectou
+        elif self.packetType == 16:
+            self.packet.printReceived()
+            nodoARemover = self.packet.getData()
+            self.router.updateArvore(nodoARemover)
+            for tuplo, caminho in self.router.getClientesAtivos().items():
+                if nodoARemover in caminho:
+                    self.terminaVideo(tuplo[0],tuplo[1])
+            
+            videos = []
+            for video, server in self.rp.getVideos().items():
+                if server == nodoARemover:
+                    videos.append(video)
+            for vid in videos:
+                self.rp.removeVideo(vid)
+
+        # Para o nodo limpar o campo A Transmitir
+        elif self.packetType == 17:
+            self.packet.printReceived()
+            self.router.clearATransmitir()
+        
+        # Para começar a fazer fload
+        elif self.packetType == 18:
             self.packet.printReceived()
             self.router.startfload()
-
-        elif self.packetType == 17:
-            if self.routerType != 3:
-                self.packet.printReceived()
-                self.router.clearATransmitir()
-
 
         
 

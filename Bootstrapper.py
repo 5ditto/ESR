@@ -17,6 +17,7 @@ class Bootstrapper:
         self.vizinhos = []
         self.IpRP = ""
         self.aTransmitir = {}
+        self.clientesServers = []
         self.clientes = []
         
 
@@ -60,7 +61,7 @@ class Bootstrapper:
                 if (ip[0][0] == "n"):   
                     self.nodos.setdefault(ip[0], "0")
                 if len(self.info[ip]) == 1:
-                    self.clientes.append(ip)
+                    self.clientesServers.append(ip)
 
     # Retorna os vizinhos através do nome 
     def getVizinhosbyName(self,nome):
@@ -115,6 +116,9 @@ class Bootstrapper:
     
     def getClientes(self):
         return self.clientes
+    
+    def getClientesServers(self):
+        return self.clientesServers
             
     # Adiciona ao dicionário para quem está a transmitir o nome do vídeo e o nodo
     def addATransmitir(self,nomeVideo,tuploVizinho):
@@ -140,30 +144,31 @@ class Bootstrapper:
             print("[STREAM UDP] {A Transmitir}:" , self.aTransmitir)
 
 
-    def substituiVizinhos(self, nodoDown):
-        if nodoDown in self.info:
-            vizinhos = self.info.pop(nodoDown)
-            for nodo in vizinhos:
-                for nodoA in vizinhos:
-                    if nodo in self.clientes and nodoA in self.clientes:
-                        pass
-                    elif nodo != nodoA:
-                        self.info[nodo].append(nodoA)
-                    
-                if nodoDown in self.info[nodo]:
-                    self.info[nodo].remove(nodoDown)
-        
-        for tuplo, vizinhosA in self.info.items():
-            self.info[tuplo] = list(set(vizinhosA))
     
     def clearATransmitir(self):
         self.aTransmitir.clear()
 
     def setNewFile(self):
+        nodosMudados = []
+        oldInfo = self.info.copy()
         self.clientes.clear()
         self.info.clear()
         self.file = input("Insira novo ficheiro: ")
         self.parserConfig(self.file)
+
+        for tuplo, vizinhos in self.info.items():
+            for tuploOld, vizinhosOld in oldInfo.items():
+                if tuplo == tuploOld:
+                    if vizinhos != vizinhosOld:
+                        nodosMudados.append(tuplo)
+        return nodosMudados
+
+
+
+
+    
+
+
 
 
 

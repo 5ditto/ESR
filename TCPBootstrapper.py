@@ -44,17 +44,16 @@ class TCPBootstrapper(threading.Thread):
         # podia fazer ao receber o pedido dos vizinhos mandar o tipo e assim apenas fazia ping aos routers e nao aos clientes
         while 1:
             stringPing = "[BOOTSTRAPPER CONTROL] Mandei ping para "
-            for nome, ip in self.bs.getNodos().items():
-                if ip != "0":
-                    stringPing += nome + " "
-            print(stringPing)
 
             nodos = self.bs.getNodos()
 
             for nodo, ip in nodos.items():
-                if ip != "0":               # quer dizer que o nodo está ativo
+                tuplo = (nodo,ip)
+                if ip != "0" and tuplo not in self.bs.getClientes():               # quer dizer que o nodo está ativo
+                    stringPing += nodo + " "
                     packet = Packet("Bootstrapper",ip,3,nodo)
                     self.sendPing(packet,12345)
+            print(stringPing)
             time.sleep(20)                  # 60 em 60 segundos verifica se os routers estão ativos
 
 
@@ -73,29 +72,18 @@ class TCPBootstrapper(threading.Thread):
             print("Erro: Não foi possível conectar a " + ipDest)
             self.bs.setNodoOFF(packet.getData())           # colocar o router desligado
             ip = self.bs.getIPbyName(packet.getData())
-            
-            self.bs.substituiVizinhos((packet.getData(),ip))
+            nodoARemover = (packet.getData(),ip)
+            vizinhosNovos = self.bs.setNewFile()
 
-             # enviar ao RP para limpar a árvore
-            packetRP = Packet("Bootstrapper",self.bs.getIpRP(),15,"ERROR")
+            for nome, ip1 in vizinhosNovos:
+                vizinhos = self.bs.getVizinhosbyName(nome)
+                packetVizinho = Packet("Bootstrapper",ip1,2,vizinhos)
+                self.send(packetVizinho,12345)
+
+            # enviar ao RP o nodo que se desconectou
+            packetRP = Packet("Bootstrapper",self.bs.getIpRP(),16,nodoARemover)
             self.send(packetRP,12345)
-
-            #enviar novos vizinhos
-            for nome, ip in self.bs.getNodos().items():
-                if ip != "0":
-                    vizinhos = self.bs.getVizinhosbyName(nome)
-                    packetVizinho = Packet("Bootstrapper",ip,2,vizinhos)
-                    self.send(packetVizinho,12345)
-
-                    # limpar o campo ATransmitir
-                    packetATransmitir = Packet("Bootstrapper",ip,17,"CLEAR")
-                    self.send(packetATransmitir,12345)
-             
             
-             # enviar aos clientes para fazerem fload
-            for nome,ip in self.bs.getClientes():
-                packetCliente = Packet("Bootstrapper",ip,16,"FLOAD")
-                self.send(packetCliente,12345)
 
 
         except Exception as e:
@@ -149,11 +137,14 @@ class PacketHandlerBootstrapper(threading.Thread):
                     self.bs.setNodoON(nomeNodo,ipNodo)      # quando um router se liga ao Bootstrapper adiciona-mos aos nodos ativos
                 vizinhos = self.bs.getVizinhosbyName(nomeNodo)
                 if not vizinhos:
-                    self.novoCliente(nomeNodo)
+                    self.novoNodo(nomeNodo)
                 else:
                     packet = Packet("Bootstrapper",ipNodo,2,vizinhos)
                     time.sleep(1)
                     self.send(packet,12345)
+
+                if typeSource == 3:
+                    self.bs.addCliente((nomeNodo,ipNodo))
 
 
                 # Quando é um cliente ou servidor manda o IP do RP
@@ -168,7 +159,7 @@ class PacketHandlerBootstrapper(threading.Thread):
                     packetipRP = Packet("Bootstrapper",ipRP,5,ipRP)
                     self.send(packetipRP,12345)
 
-
+                
 
 
 
@@ -192,7 +183,7 @@ class PacketHandlerBootstrapper(threading.Thread):
 
     
     def novoCliente(self,nome):
-        self.bs.setNewFile()
+        vizinhosNovos = self.bs.setNewFile()
         ip = self.bs.getIPbyName(nome)
         self.bs.setNodoON(nome,ip)
 
@@ -200,25 +191,23 @@ class PacketHandlerBootstrapper(threading.Thread):
         packetRP = Packet("Bootstrapper",self.bs.getIpRP(),15,"ERROR")
         self.send(packetRP,12345)
 
-        for nodo, ip in self.bs.getNodos().items():
-            if ip != "0":
-                vizinhos = self.bs.getVizinhosbyName(nodo)
-                packetVizinho = Packet("Bootstrapper",ip,2,vizinhos)
+
+        for nome, ip1 in vizinhosNovos:
+                vizinhos = self.bs.getVizinhosbyName(nome)
+                packetVizinho = Packet("Bootstrapper",ip1,2,vizinhos)
                 self.send(packetVizinho,12345)
 
+        for nodo, ip in self.bs.getNodos().items():
+            if ip != "0" and (nodo,ip) not in self.bs.getClientes():
                 # limpar o campo ATransmitir
                 packetATransmitir = Packet("Bootstrapper",ip,17,"CLEAR")
                 self.send(packetATransmitir,12345)
-
-         # enviar aos clientes para fazerem fload
+    
+        # enviar aos clientes para fazerem fload
         for nome,ip in self.bs.getClientes():
-            packetCliente = Packet("Bootstrapper",ip,16,"FLOAD")
+            packetCliente = Packet("Bootstrapper",ip,18,"FLOAD")
             self.send(packetCliente,12345)
 
 
 
-
-
-
-
-
+    

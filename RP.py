@@ -117,6 +117,9 @@ class RP:
     
     def getVideosDisponiveis(self):
         return list(self.videos.keys())
+    
+    def removeVideo(self,videoName):
+        self.videos.pop(videoName)
 
 
 
@@ -225,6 +228,27 @@ class RP:
         print("{Clientes Ativos}", self.clientesAtivos)
         print("--------------------")
 
+    def updateArvore(self, nodo):
+
+        for nomeNodo, caminhos in self.arvore.items():
+            for caminho in caminhos:
+                indexA = -1
+                for index,(nome, ip, latencia) in enumerate(caminho):
+                    if nodo == (nome, ip):
+                        indexA = index
+                        if index > 0:
+                            caminho[index - 1] = (caminho[index - 1][0],caminho[index - 1][1],caminho[index - 1][2] + latencia)
+                        elif index == 0 and len(caminho) > 1:
+                            caminho[index + 1] = (caminho[index + 1][0],caminho[index + 1][1],caminho[index + 1][2] + latencia)
+                        elif len(caminho) == 1:
+                            self.arvore.pop(nomeNodo)
+
+                if indexA != -1:
+                    caminho.pop(indexA)
+        print(self.arvore)
+
+
+        
 
 
 
