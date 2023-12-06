@@ -91,6 +91,13 @@ class Client:
         self.videosDisponiveis = videos
     
 
+    def startfload(self):
+        # Fazer fload na rede
+        for vizinho in self.vizinhos:
+            packetFload = Packet(self.name,vizinho[1],4,[])
+            TCPSender(packetFload,12345)
+
+
     def menuVideos(self):
         print("+-------------------------+")
         print("|           MENU          |")

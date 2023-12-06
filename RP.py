@@ -146,7 +146,7 @@ class RP:
                                     indexNodo = caminhoAtivo.index(nodo)
                                     complemento = caminhoAtivo[:indexNodo]
                                     flagON = 1
-                                    
+
             
             if self.calculaLatencia(caminho) < latencia:
                 latencia = self.calculaLatencia(caminho)
@@ -201,12 +201,20 @@ class RP:
     
     def removeClienteAtivo(self,nomeCliente,nomeVideo):
         tuplo = (nomeCliente,nomeVideo)
-        return self.clientesAtivos.pop(tuplo)
+        if tuplo in self.clientesAtivos:
+            return self.clientesAtivos.pop(tuplo)
     
 
     def getATransmitir(self):
         return self.aTransmitir
     
+    def clearInfo(self):
+        self.arvore.clear()
+        self.clientesAtivos.clear()
+        self.videos.clear()
+
+    def clearATransmitir(self):
+        self.aTransmitir.clear()
     
 
 

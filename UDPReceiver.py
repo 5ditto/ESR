@@ -40,8 +40,9 @@ class PacketHandlerThread(threading.Thread):
     def run(self):
 
         videosON = self.router.getATransmitir()
-        for nodo in videosON[self.videoName]:
-            self.enviarPacketVideo(nodo[1])
+        if self.videoName in videosON:
+            for nodo in videosON[self.videoName]:
+                self.enviarPacketVideo(nodo[1])
 
     
 

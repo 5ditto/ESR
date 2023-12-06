@@ -80,6 +80,13 @@ class Packet:
         if self.type == 14:
             msg += "Recebi pedido do RP para não transmitir mais a stream\n"
 
+        if self.type == 15:
+            msg += "Recebi pedido do Bootstrapper para apagar a árvore\n"
+        
+        if self.type == 16:
+            msg += "Recebi pedido do Bootstrapper para enviar fload\n"
+
+
         msg += str(self.data)
         msg += "\n--------------"
         
@@ -137,6 +144,12 @@ class Packet:
 
         if self.type == 14:
             msg += "Enviei ao Servidor para parar de transmitir a stream\n"
+        
+        if self.type == 15:
+            msg += "Envie ao RP para apagar a árvore\n"
+        
+        if self.type == 16:
+            msg += "Enviei aos Clientes para começarem a fazer fload\n"
 
 
         msg += str(self.data)

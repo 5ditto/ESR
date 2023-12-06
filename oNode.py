@@ -79,4 +79,7 @@ class oNode:
             print("[STREAM UDP] {A Transmitir}:" , self.aTransmitir)
 
 
+    def clearATransmitir(self):
+        self.aTransmitir.clear()
+
 router = oNode()

@@ -55,9 +55,15 @@ class PacketHandlerThread(threading.Thread):
 
 
         if self.packetType == 2:
-            self.packet.printReceived()
-            self.router.setVizinhos(self.packet.getData())
-            self.router.getEventVizinhos().set()  # avisa que já possui vizinhos
+            if self.routerType == 1:
+                self.packet.printReceived()
+                self.router.setVizinhos(self.packet.getData())
+            else:         
+                self.packet.printReceived()
+                self.router.setVizinhos(self.packet.getData())
+                self.router.getEventVizinhos().set()  # avisa que já possui vizinhos
+
+
 
         # Quando recebe packet de fload
         elif self.packetType == 4:
@@ -122,7 +128,6 @@ class PacketHandlerThread(threading.Thread):
             self.enviaPacketsRP(melhorCaminho,nomeVideo,nomeCliente)
 
 
-
         # Quando cada nodo recebe o titulo do video e o nodo para quem deve enviar
         elif self.packetType == 10:
             self.packet.printReceived()
@@ -157,6 +162,25 @@ class PacketHandlerThread(threading.Thread):
             self.packet.printReceived()
             data = self.packet.getData()
             self.router.rmATransmitir(data)
+
+        # Quando o RP recebe mensagem do Bootstrapper para limpar a árvore
+        elif self.packetType == 15:
+            self.packet.printReceived()
+            self.router.clearInfo()
+        
+        # Quando o cliente volta a fazer fload
+        elif self.packetType == 16 and self.routerType == 3:
+            self.packet.printReceived()
+            self.router.startfload()
+
+        elif self.packetType == 17:
+            if self.routerType != 3:
+                self.packet.printReceived()
+                self.router.clearATransmitir()
+
+
+        
+
 
 
             
@@ -210,18 +234,19 @@ class PacketHandlerThread(threading.Thread):
 
         listaNodos = self.router.removeClienteAtivo(nomeCliente,nomeVideo)
 
-        for i, nodo in enumerate(listaNodos):
-            if i + 1 < len(listaNodos):
-                if self.transmissãoON(listaNodos[i],listaNodos[i+1],nomeVideo) == False:
-                    tuplo = (nomeVideo,listaNodos[i+1])
-                    packet = Packet("RP",nodo[1],13,tuplo)
-                    TCPSender(packet,12345)
-                
-        # quando não há ninguém a consumir aquele vídeo
-        if not any(nomeVideo == tuplo[1] for tuplo in list(self.rp.getClientesAtivos().keys())):
-            server = self.router.getVideos()[nomeVideo]
-            packetServer = Packet("RP",server[1],14,nomeVideo)
-            TCPSender(packetServer,12345)
+        if listaNodos:
+            for i, nodo in enumerate(listaNodos):
+                if i + 1 < len(listaNodos):
+                    if self.transmissãoON(listaNodos[i],listaNodos[i+1],nomeVideo) == False:
+                        tuplo = (nomeVideo,listaNodos[i+1])
+                        packet = Packet("RP",nodo[1],13,tuplo)
+                        TCPSender(packet,12345)
+                    
+            # quando não há ninguém a consumir aquele vídeo
+            if not any(nomeVideo == tuplo[1] for tuplo in list(self.rp.getClientesAtivos().keys())):
+                server = self.router.getVideos()[nomeVideo]
+                packetServer = Packet("RP",server[1],14,nomeVideo)
+                TCPSender(packetServer,12345)
         
 
     

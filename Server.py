@@ -100,6 +100,14 @@ class Server:
         print("[STREAM UDP] Vou parar de transmitir este vídeo " + nomeVideo)
         print("[STREAM UDP] {Vídeos ON} ", self.videosATransmitir)
         return video
+    
+
+    def clearATransmitir(self):
+        self.videosATransmitir = []
+
+        # Diz ao RP quais os vídeos que tem
+        packetServer = Packet(self.name, self.ipRP,6,self.videosName)
+        TCPSender(packetServer,12345)
 
 
 
@@ -112,10 +120,10 @@ class SendUDPPacket(threading.Thread):
         self.videoName = videoName
 
     def run(self):
-        videosName = self.server.getATransmitir()
+
         udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        while self.videoName in videosName:
+        while self.videoName in self.server.getATransmitir():
             time.sleep(0.05)
             data = self.video.nextFrame()
             if data:
@@ -126,6 +134,7 @@ class SendUDPPacket(threading.Thread):
                 udp_socket.sendto(pickle.dumps(packet),(addr,porta))
             else:
                 self.video.seek()
+        print("STOP")
 
 
 

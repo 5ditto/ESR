@@ -15,8 +15,8 @@ class TCPBootstrapper(threading.Thread):
     def run(self):
 
         # criar thread para o Bootstrapper ver os routers ativos
-        #threadVerificaRouters = threading.Thread(target=self.verificaLigacao)
-        #threadVerificaRouters.start()
+        threadVerificaRouters = threading.Thread(target=self.verificaLigacao)
+        threadVerificaRouters.start()
 
 
         tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -37,7 +37,92 @@ class TCPBootstrapper(threading.Thread):
 
 
 
+
+
+    # Para verificar se os routers estão ativos
+    def verificaLigacao(self):
+        # podia fazer ao receber o pedido dos vizinhos mandar o tipo e assim apenas fazia ping aos routers e nao aos clientes
+        while 1:
+            stringPing = "[BOOTSTRAPPER CONTROL] Mandei ping para "
+            for nome, ip in self.bs.getNodos().items():
+                if ip != "0":
+                    stringPing += nome + " "
+            print(stringPing)
+
+            nodos = self.bs.getNodos()
+
+            for nodo, ip in nodos.items():
+                if ip != "0":               # quer dizer que o nodo está ativo
+                    packet = Packet("Bootstrapper",ip,3,nodo)
+                    self.sendPing(packet,12345)
+            time.sleep(20)                  # 60 em 60 segundos verifica se os routers estão ativos
+
+
+
+
+    def sendPing(self,packet, porta):
+        #packet.printSent()
+        ipDest = packet.getDestination()
+        
+        try:
+            tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            tcp.connect((ipDest,porta))
+            serializedPack = pickle.dumps(packet)
+            tcp.sendall(serializedPack)
+        except ConnectionRefusedError:
+            print("Erro: Não foi possível conectar a " + ipDest)
+            self.bs.setNodoOFF(packet.getData())           # colocar o router desligado
+            ip = self.bs.getIPbyName(packet.getData())
+            
+            self.bs.substituiVizinhos((packet.getData(),ip))
+
+             # enviar ao RP para limpar a árvore
+            packetRP = Packet("Bootstrapper",self.bs.getIpRP(),15,"ERROR")
+            self.send(packetRP,12345)
+
+            #enviar novos vizinhos
+            for nome, ip in self.bs.getNodos().items():
+                if ip != "0":
+                    vizinhos = self.bs.getVizinhosbyName(nome)
+                    packetVizinho = Packet("Bootstrapper",ip,2,vizinhos)
+                    self.send(packetVizinho,12345)
+
+                    # limpar o campo ATransmitir
+                    packetATransmitir = Packet("Bootstrapper",ip,17,"CLEAR")
+                    self.send(packetATransmitir,12345)
+             
+            
+             # enviar aos clientes para fazerem fload
+            for nome,ip in self.bs.getClientes():
+                packetCliente = Packet("Bootstrapper",ip,16,"FLOAD")
+                self.send(packetCliente,12345)
+
+
+        except Exception as e:
+            print(f"Erro inesperado: {e}")
+        finally:
+            tcp.close()
+
+
+
+
     
+    def send(self,packet, porta):
+        #packet.printSent()
+        packet.printSentShort()
+        ipDest = packet.getDestination()
+        
+        try:
+            tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            tcp.connect((ipDest,porta))
+            serializedPack = pickle.dumps(packet)
+            tcp.sendall(serializedPack)
+        except ConnectionRefusedError:
+            print("Erro: Não foi possível conectar a " + ipDest)
+        except Exception as e:
+            print(f"Erro inesperado: {e}")
+        finally:
+            tcp.close()
 
 
 
@@ -60,11 +145,15 @@ class PacketHandlerBootstrapper(threading.Thread):
                 nomeNodo = self.packet.getSource()
                 ipNodo = self.bs.getIPbyName(nomeNodo)
                 typeSource = self.packet.getData()
-                self.bs.setNodoON(nomeNodo,ipNodo)      # quando um router se liga ao Bootstrapper adiciona-mos aos nodos ativos
+                if ipNodo:
+                    self.bs.setNodoON(nomeNodo,ipNodo)      # quando um router se liga ao Bootstrapper adiciona-mos aos nodos ativos
                 vizinhos = self.bs.getVizinhosbyName(nomeNodo)
-                packet = Packet("Bootstrapper",ipNodo,2,vizinhos)
-                time.sleep(1)
-                self.send(packet,12345)
+                if not vizinhos:
+                    self.novoCliente(nomeNodo)
+                else:
+                    packet = Packet("Bootstrapper",ipNodo,2,vizinhos)
+                    time.sleep(1)
+                    self.send(packet,12345)
 
 
                 # Quando é um cliente ou servidor manda o IP do RP
@@ -95,30 +184,41 @@ class PacketHandlerBootstrapper(threading.Thread):
             tcp.sendall(serializedPack)
         except ConnectionRefusedError:
             print("Erro: Não foi possível conectar a " + ipDest)
-            if packet.getType() == 3:
-                self.bs.setNodoOFF(packet.getData())            # colocar o router desligado
         except Exception as e:
             print(f"Erro inesperado: {e}")
         finally:
             tcp.close()
 
+
     
+    def novoCliente(self,nome):
+        self.bs.setNewFile()
+        ip = self.bs.getIPbyName(nome)
+        self.bs.setNodoON(nome,ip)
+
+        # enviar ao RP para limpar a árvore
+        packetRP = Packet("Bootstrapper",self.bs.getIpRP(),15,"ERROR")
+        self.send(packetRP,12345)
+
+        for nodo, ip in self.bs.getNodos().items():
+            if ip != "0":
+                vizinhos = self.bs.getVizinhosbyName(nodo)
+                packetVizinho = Packet("Bootstrapper",ip,2,vizinhos)
+                self.send(packetVizinho,12345)
+
+                # limpar o campo ATransmitir
+                packetATransmitir = Packet("Bootstrapper",ip,17,"CLEAR")
+                self.send(packetATransmitir,12345)
+
+         # enviar aos clientes para fazerem fload
+        for nome,ip in self.bs.getClientes():
+            packetCliente = Packet("Bootstrapper",ip,16,"FLOAD")
+            self.send(packetCliente,12345)
 
 
 
 
-    # Para verificar se os routers estão ativos
-    def verificaLigacao(self):
-        # podia fazer ao receber o pedido dos vizinhos mandar o tipo e assim apenas fazia ping aos routers e nao aos clientes
-        while 1:
-            
-            nodos = self.bs.getNodos()
 
-            for nodo, ip in nodos.items():
-                if ip != "0":               # quer dizer que o nodo está ativo
-                    packet = Packet("Bootstrapper",ip,3,nodo)
-                    self.send(packet,12345)
-            time.sleep(60)                  # 60 em 60 segundos verifica se os routers estão ativos
 
 
 

@@ -17,6 +17,7 @@ class Bootstrapper:
         self.vizinhos = []
         self.IpRP = ""
         self.aTransmitir = {}
+        self.clientes = []
         
 
         # Atualiza o ficheiro info e o nodos
@@ -24,6 +25,8 @@ class Bootstrapper:
 
         # Atualiza os seus vizinhos
         self.vizinhos = self.getVizinhosbyName(self.name)
+        meuIP = self.getIPbyName(self.name)
+        self.setNodoON(self.name,meuIP)
 
 
         # Coloca TCP Bootstrapper á escuta
@@ -55,7 +58,9 @@ class Bootstrapper:
                 vizinhos = partes[1].split(';')
                 self.info[ip] = [tuple(map(str, v[1:-1].split(','))) for v in vizinhos]
                 if (ip[0][0] == "n"):   
-                    self.nodos[ip[0]] = "0" 
+                    self.nodos.setdefault(ip[0], "0")
+                if len(self.info[ip]) == 1:
+                    self.clientes.append(ip)
 
     # Retorna os vizinhos através do nome 
     def getVizinhosbyName(self,nome):
@@ -81,6 +86,13 @@ class Bootstrapper:
     def setIpRP(self,ip):
         self.IpRP = ip
 
+    def getInfo(self):
+        return self.info
+
+    def getNodos(self):
+        return self.nodos
+
+
     def getIPbyName(self,name):
         for nome, ip in self.info.keys():
             if name == nome:
@@ -97,6 +109,12 @@ class Bootstrapper:
     
     def getNome(self):
         return self.name
+
+    def addCliente(self,cliente):
+        self.clientes.append(cliente)
+    
+    def getClientes(self):
+        return self.clientes
             
     # Adiciona ao dicionário para quem está a transmitir o nome do vídeo e o nodo
     def addATransmitir(self,nomeVideo,tuploVizinho):
@@ -120,7 +138,34 @@ class Bootstrapper:
         if tuploVizinho not in self.aTransmitir[nomeVideo]:
             print("[STREAM UDP] Parei de transmitir o vídeo " + nomeVideo + " para o nodo " + tuploVizinho[0])
             print("[STREAM UDP] {A Transmitir}:" , self.aTransmitir)
-            
+
+
+    def substituiVizinhos(self, nodoDown):
+        if nodoDown in self.info:
+            vizinhos = self.info.pop(nodoDown)
+            for nodo in vizinhos:
+                for nodoA in vizinhos:
+                    if nodo in self.clientes and nodoA in self.clientes:
+                        pass
+                    elif nodo != nodoA:
+                        self.info[nodo].append(nodoA)
+                    
+                if nodoDown in self.info[nodo]:
+                    self.info[nodo].remove(nodoDown)
+        
+        for tuplo, vizinhosA in self.info.items():
+            self.info[tuplo] = list(set(vizinhosA))
+    
+    def clearATransmitir(self):
+        self.aTransmitir.clear()
+
+    def setNewFile(self):
+        self.clientes.clear()
+        self.info.clear()
+        self.file = input("Insira novo ficheiro: ")
+        self.parserConfig(self.file)
+
+
 
 
 bootstrapper = Bootstrapper()
